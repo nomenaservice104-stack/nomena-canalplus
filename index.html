@@ -141,6 +141,28 @@
             <label>Montant (Ar) *</label>
             <input type="number" id="montant" placeholder="0" min="0" required>
           </div>
+
+          <div class="form-group full-width hidden" id="photosGroup">
+            <label>Photos vente</label>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Photo décodeur</label>
+                <input type="file" id="photoDecodeur" accept="image/*">
+              </div>
+              <div class="form-group">
+                <label>Photo carte</label>
+                <input type="file" id="photoCarte" accept="image/*">
+              </div>
+              <div class="form-group">
+                <label>Photo signal</label>
+                <input type="file" id="photoSignal" accept="image/*">
+              </div>
+              <div class="form-group">
+                <label>Photo parabole</label>
+                <input type="file" id="photoParabole" accept="image/*">
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="commission-display" id="commissionBox">
@@ -206,17 +228,26 @@
       const decodeurGroup = document.getElementById('decodeurGroup');
       const bouquetGroup = document.getElementById('bouquetGroup');
       const montantGroup = document.getElementById('montantGroup');
+      const photosGroup = document.getElementById('photosGroup');
+      const bouquet = document.getElementById('bouquet');
+      const montant = document.getElementById('montant');
 
       if (type === 'vente') {
         carteGroup.classList.remove('hidden');
         decodeurGroup.classList.remove('hidden');
         bouquetGroup.classList.add('hidden');
         montantGroup.classList.add('hidden');
+        photosGroup.classList.remove('hidden');
+        bouquet.required = false;
+        montant.required = false;
       } else {
         carteGroup.classList.remove('hidden');
         decodeurGroup.classList.add('hidden');
         bouquetGroup.classList.remove('hidden');
         montantGroup.classList.remove('hidden');
+        photosGroup.classList.add('hidden');
+        bouquet.required = true;
+        montant.required = true;
       }
     }
 
@@ -268,6 +299,28 @@
       renderCalc();
     }
 
+    function readFileAsDataURL(file) {
+      return new Promise((resolve, reject) => {
+        if (!file) return resolve('');
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result || '');
+        reader.onerror = () => reject(new Error('Erreur lecture fichier'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function getPhotoValues() {
+      const files = {
+        photoDecodeur: document.getElementById('photoDecodeur').files[0],
+        photoCarte: document.getElementById('photoCarte').files[0],
+        photoSignal: document.getElementById('photoSignal').files[0],
+        photoParabole: document.getElementById('photoParabole').files[0]
+      };
+
+      const entries = await Promise.all(Object.entries(files).map(async ([key, file]) => [key, await readFileAsDataURL(file)]));
+      return Object.fromEntries(entries);
+    }
+
     function loadEditIfAny() {
       const params = new URLSearchParams(window.location.search);
       const editIdParam = params.get('edit');
@@ -298,7 +351,7 @@
       renderCalc();
     }
 
-    document.getElementById('opForm').addEventListener('submit', (e) => {
+    document.getElementById('opForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
       const type = document.getElementById('type').value;
@@ -312,6 +365,13 @@
       } else {
         commissions = calcReaboCommission(source, montantSaisi);
       }
+
+      const photos = type === 'vente' ? await getPhotoValues() : {
+        photoDecodeur: '',
+        photoCarte: '',
+        photoSignal: '',
+        photoParabole: ''
+      };
 
       const operation = {
         id: editId || generateId(),
@@ -330,7 +390,11 @@
         montant: commissions.montant,
         commissionToi: commissions.commissionToi,
         commissionSource: commissions.commissionSource,
-        commissionTech: commissions.commissionTech
+        commissionTech: commissions.commissionTech,
+        photoDecodeur: photos.photoDecodeur,
+        photoCarte: photos.photoCarte,
+        photoSignal: photos.photoSignal,
+        photoParabole: photos.photoParabole
       };
 
       const data = loadData();
