@@ -51,6 +51,10 @@ tr:hover{background:#1e2a3a}
 .context-menu-item{padding:6px 12px;cursor:pointer;font-size:12px;color:#eef4fb}
 .context-menu-item:hover{background:#2f6fed}
 .context-menu-item.danger:hover{background:#dc3545}
+.photo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.photo-item{background:#1a2431;border:1px solid #415063;border-radius:6px;padding:6px}
+.photo-item img{width:100%;height:90px;object-fit:cover;border-radius:4px;display:block}
+.photo-item .cap{font-size:9px;color:#b8c4d4;margin-top:4px}
 </style>
 </head>
 <body>
@@ -107,13 +111,16 @@ tr:hover{background:#1e2a3a}
 <div class="empty hidden" id="emptyState">Aucune opération.</div>
 </div>
 </div>
+
 <div id="contextMenu" class="context-menu">
 <div class="context-menu-item" onclick="editFromContext()">✏️ Modifier</div>
 <div class="context-menu-item" onclick="printFromContext()">📑 PDF</div>
 <div class="context-menu-item" onclick="historyFromContext()">📄 Historique</div>
 <div class="context-menu-item danger" onclick="deleteFromContext()">🗑️ Supprimer</div>
 </div>
+
 <div id="pdfArea"></div>
+
 <div class="edit-box" id="editBox">
 <div class="edit-card">
 <h2>✏️ Modifier</h2>
@@ -132,6 +139,35 @@ tr:hover{background:#1e2a3a}
 <input type="time" id="editHeure">
 <select id="editStatut"><option value="OK">OK</option><option value="En attente">En attente</option><option value="Annulé">Annulé</option></select>
 </div>
+
+<div style="margin-top:10px;padding:10px;background:#1a2431;border-radius:6px">
+<div style="font-size:11px;color:#b8c4d4;margin-bottom:6px">Photos vente</div>
+<div class="photo-grid">
+<div class="photo-item">
+<img id="previewPhotoDecodeur" src="" alt="">
+<div class="cap">Décodeur</div>
+</div>
+<div class="photo-item">
+<img id="previewPhotoCarte" src="" alt="">
+<div class="cap">Carte</div>
+</div>
+<div class="photo-item">
+<img id="previewPhotoSignal" src="" alt="">
+<div class="cap">Signal</div>
+</div>
+<div class="photo-item">
+<img id="previewPhotoParabole" src="" alt="">
+<div class="cap">Parabole</div>
+</div>
+</div>
+<div class="edit-grid" style="margin-top:8px">
+<input type="file" id="editPhotoDecodeur" accept="image/*">
+<input type="file" id="editPhotoCarte" accept="image/*">
+<input type="file" id="editPhotoSignal" accept="image/*">
+<input type="file" id="editPhotoParabole" accept="image/*">
+</div>
+</div>
+
 <div class="edit-actions">
 <button class="btn-secondary" onclick="closeEdit()">Annuler</button>
 <button onclick="saveEdit()">💾 Enregistrer</button>
@@ -141,16 +177,18 @@ tr:hover{background:#1e2a3a}
 </div>
 </div>
 </div>
+
 <script>
 const STORAGE_KEY='canalplus_operations';
 let editIndex=-1;
 let contextMenuItemIndex=-1;
+
 function escapeHtml(str){return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;')}
-function escapeJs(str){return String(str||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"').replace(/\n/g,'\\n').replace(/\r/g,'\\r')}
 function loadData(){try{const raw=localStorage.getItem(STORAGE_KEY);const parsed = raw ? JSON.parse(raw) : [];return Array.isArray(parsed)?parsed:[]}catch(e){return[]}}
 function saveData(data){localStorage.setItem(STORAGE_KEY,JSON.stringify(data))}
 function formatDate(v){if(!v)return'';const d=new Date(v);if(isNaN(d.getTime()))return v;return d.toLocaleDateString('fr-FR')}
 function formatMoney(v){const n=Number(v||0);return n.toLocaleString('fr-FR')+' Ar'}
+function getLoadData(){return loadData()}
 function getFilteredData(){
 const data=getLoadData();
 const q=document.getElementById('searchInput').value.toLowerCase().trim();
@@ -165,7 +203,6 @@ const matchTech=!tech||item.technicien===tech;
 return matchName&&matchType&&matchSource&&matchTech;
 });
 }
-function getLoadData(){return loadData()}
 function renderSelectOptions(){
 const data=getLoadData();
 const sources=[...new Set(data.map(x=>x.source).filter(Boolean))];
@@ -231,7 +268,7 @@ function printReceipt(index){
 const data=getLoadData();
 const item=data[index];
 if(!item)return;
-const rows=`<tr><td>${escapeHtml(formatDate(item.date||''))}</td><td>${escapeHtml(item.type==='reabo'?'Réabo':'Vente')}</td><td>${escapeHtml(item.nom||' ')}</td><td>${escapeHtml(item.source||'')}</td><td>${escapeHtml(item.technicien||'')}</td><td>${escapeHtml(formatMoney(item.montant||0))}</td><td>${escapeHtml(formatMoney(item.commissionToi||0))}</td><td>${escapeHtml(formatMoney(x.commissionSource||0))}</td><td>${escapeHtml(formatMoney(x.commissionTech||0))}</td></tr>`;
+const rows=`<tr><td>${escapeHtml(formatDate(item.date||''))}</td><td>${escapeHtml(item.type==='reabo'?'Réabo':'Vente')}</td><td>${escapeHtml(item.nom||' ')}</td><td>${escapeHtml(item.source||'')}</td><td>${escapeHtml(item.technicien||'')}</td><td>${escapeHtml(formatMoney(item.montant||0))}</td><td>${escapeHtml(formatMoney(item.commissionToi||0))}</td><td>${escapeHtml(formatMoney(item.commissionSource||0))}</td><td>${escapeHtml(formatMoney(item.commissionTech||0))}</td></tr>`;
 const el=document.getElementById('pdfArea');
 el.innerHTML=buildPdfContent('Reçu: '+(item.nom||''),rows);
 html2pdf().set({margin:10,filename:'recu_'+sanitizeFile(item.nom||'op')+'.pdf',html2canvas:{scale:2,useCORS:true,scrollY:0},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}}).from(el).save();
@@ -254,10 +291,23 @@ document.getElementById('editType').value=item.type||'vente';
 document.getElementById('editDate').value=item.date?String(item.date).slice(0,10):'';
 document.getElementById('editHeure').value=item.heure||'';
 document.getElementById('editStatut').value=item.statut||'OK';
+document.getElementById('previewPhotoDecodeur').src=item.photoDecodeur||'';
+document.getElementById('previewPhotoCarte').src=item.photoCarte||'';
+document.getElementById('previewPhotoSignal').src=item.photoSignal||'';
+document.getElementById('previewPhotoParabole').src=item.photoParabole||'';
 document.getElementById('editBox').style.display='flex';
 }
 function closeEdit(){document.getElementById('editBox').style.display='none';editIndex=-1}
-function saveEdit(){
+function readFileAsDataURL(file){
+return new Promise((resolve,reject)=>{
+if(!file)return resolve('');
+const reader=new FileReader();
+reader.onload=()=>resolve(reader.result||'');
+reader.onerror=()=>reject(new Error('Erreur lecture fichier'));
+reader.readAsDataURL(file);
+});
+}
+async function saveEdit(){
 const data=getLoadData();
 if(editIndex<0||!data[editIndex])return;
 const type=document.getElementById('editType').value;
@@ -278,7 +328,16 @@ commissionToi=source?base*0.03:base*0.06;
 commissionTech=0;
 montant=base;
 }
-data[editIndex]={...data[editIndex],nom:document.getElementById('editNom').value.trim(),prenom:document.getElementById('editPrenom').value.trim(),contact:document.getElementById('editContact').value.trim(),source,technicien:type==='vente'?technicien:'',numCarte:document.getElementById('editNumCarte').value.trim(),numDecodeur:document.getElementById('editNumDecodeur').value.trim(),bouquet:document.getElementById('editBouquet').value.trim(),montant,commissionToi,commissionSource,commissionTech,type,date:document.getElementById('editDate').value||data[editIndex].date,heure:document.getElementById('editHeure').value||data[editIndex].heure,statut:document.getElementById('editStatut').value};
+const old=data[editIndex];
+const p1=document.getElementById('editPhotoDecodeur').files[0];
+const p2=document.getElementById('editPhotoCarte').files[0];
+const p3=document.getElementById('editPhotoSignal').files[0];
+const p4=document.getElementById('editPhotoParabole').files[0];
+const photoDecodeur=type==='vente'&&p1?await readFileAsDataURL(p1):(old.photoDecodeur||'');
+const photoCarte=type==='vente'&&p2?await readFileAsDataURL(p2):(old.photoCarte||'');
+const photoSignal=type==='vente'&&p3?await readFileAsDataURL(p3):(old.photoSignal||'');
+const photoParabole=type==='vente'&&p4?await readFileAsDataURL(p4):(old.photoParabole||'');
+data[editIndex]={...data[editIndex],nom:document.getElementById('editNom').value.trim(),prenom:document.getElementById('editPrenom').value.trim(),contact:document.getElementById('editContact').value.trim(),source,technicien:type==='vente'?technicien:'',numCarte:document.getElementById('editNumCarte').value.trim(),numDecodeur:document.getElementById('editNumDecodeur').value.trim(),bouquet:document.getElementById('editBouquet').value.trim(),montant,commissionToi,commissionSource,commissionTech,type,date:document.getElementById('editDate').value||data[editIndex].date,heure:document.getElementById('editHeure').value||data[editIndex].heure,statut:document.getElementById('editStatut').value,photoDecodeur,photoCarte,photoSignal,photoParabole};
 saveData(data);closeEdit();renderTable();
 }
 function deleteItem(index){
@@ -292,7 +351,7 @@ function importJSON(event){
 const file=event.target.files[0];if(!file)return;
 const reader=new FileReader();
 reader.onload=e=>{try{const parsed=JSON.parse(e.target.result);if(!Array.isArray(parsed)){alert('JSON doit être un tableau');return}saveData(parsed);renderTable();alert('Import OK')}catch(err){alert('JSON invalide')}};
-reader.readAsText(event);event.target.value='';
+reader.readAsText(file);event.target.value='';
 }
 function resetFilters(){document.getElementById('searchInput').value='';document.getElementById('typeFilter').value='';document.getElementById('sourceFilter').value='';document.getElementById('techFilter').value='';renderTable()}
 function sanitizeFile(name){return String(name).replace(/[^a-z0-9-_]+/gi,'_').slice(0,60)}
