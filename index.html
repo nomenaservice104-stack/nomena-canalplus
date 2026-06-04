@@ -25,6 +25,10 @@
     .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:#2f6fed}
     .form-group textarea{resize:vertical;min-height:60px}
     .full-width{grid-column:1/-1}
+    .contact-group{max-width:190px}
+    .checkbox-group{display:flex;align-items:center;gap:8px;padding-top:18px}
+    .checkbox-group label{margin:0;font-size:12px;color:#b8c4d4}
+    .checkbox-group input{width:auto;accent-color:#2f6fed}
     .btn-group{display:flex;gap:7px;margin-top:12px}
     button{border:none;padding:7px 13px;border-radius:5px;cursor:pointer;font-weight:600;font-size:12px}
     .btn-primary{background:#2f6fed;color:#fff;flex:1}
@@ -100,9 +104,9 @@
             <input type="text" id="prenom" placeholder="Prénom">
           </div>
           
-          <div class="form-group">
+          <div class="form-group contact-group">
             <label>Contact</label>
-            <input type="text" id="contact" placeholder="Téléphone">
+            <input type="text" id="contact" placeholder="15 chiffres" maxlength="15" inputmode="numeric">
           </div>
           
           <div class="form-group">
@@ -113,6 +117,16 @@
           <div class="form-group">
             <label>Technicien</label>
             <input type="text" id="technicien" placeholder="Nom du tech">
+          </div>
+          
+          <div class="form-group">
+            <label>Adresse</label>
+            <input type="text" id="adresse" placeholder="Adresse">
+          </div>
+          
+          <div class="form-group checkbox-group">
+            <input type="checkbox" id="spOk">
+            <label for="spOk">SP ok</label>
           </div>
           
           <div class="form-group" id="carteGroup">
@@ -342,6 +356,8 @@
       document.getElementById('contact').value = item.contact || '';
       document.getElementById('source').value = item.source || '';
       document.getElementById('technicien').value = item.technicien || '';
+      document.getElementById('adresse').value = item.adresse || '';
+      document.getElementById('spOk').checked = !!item.spOk;
       document.getElementById('numCarte').value = item.numCarte || '';
       document.getElementById('numDecodeur').value = item.numDecodeur || '';
       document.getElementById('bouquet').value = item.bouquet || '';
@@ -384,6 +400,8 @@
         contact: document.getElementById('contact').value.trim(),
         source: source,
         technicien: type === 'vente' ? technicien : '',
+        adresse: document.getElementById('adresse').value.trim(),
+        spOk: document.getElementById('spOk').checked,
         numCarte: document.getElementById('numCarte').value.trim(),
         numDecodeur: document.getElementById('numDecodeur').value.trim(),
         bouquet: type === 'reabo' ? document.getElementById('bouquet').value.trim() : '',
