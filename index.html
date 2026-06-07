@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- Script Appwrite AJOUTÉ -->
+  <script src="https://cdn.jsdelivr.net/npm/appwrite@13.0.0/lib/appwrite.min.js"></script>
+  
   <title>CANAL+ - Saisie</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.appwrite.io/appwrite.js"></script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Inter',sans-serif;background:#eef2f7;color:#e9eef5;line-height:1.5;min-height:100vh}
@@ -34,6 +37,7 @@
     button{border:none;padding:7px 13px;border-radius:5px;cursor:pointer;font-weight:600;font-size:12px}
     .btn-primary{background:#2f6fed;color:#fff;flex:1}
     .btn-secondary{background:#415063;color:#eef4fb;flex:1}
+    .btn-danger{background:#dc3545;color:#fff}
     button:hover{opacity:.92}
     .hidden{display:none !important}
     .info-box{background:#1a2431;border-radius:5px;padding:8px;margin-top:10px;font-size:10px;color:#94a3b8}
@@ -43,54 +47,15 @@
     .commission-toi{color:#22c55e;font-weight:700}
     .commission-source{color:#38bdf8;font-weight:600}
     .commission-tech{color:#f59e0b;font-weight:600}
+    .upload-area{border:2px dashed #415063;border-radius:5px;padding:12px;text-align:center;cursor:pointer;background:#1a2431}
+    .upload-area:hover{border-color:#2f6fed;background:#1e2a3a}
+    .upload-area input{display:none}
     .photo-preview{display:grid;grid-template-columns:repeat(auto-fit,minmax(60px,1fr));gap:5px;margin-top:7px}
     .photo-preview img{width:100%;height:60px;object-fit:cover;border-radius:4px}
-
-    @media print {
-      @page { size: 80mm auto; margin: 0; }
-      html, body { margin: 0; padding: 0; width: 100%; }
-      body * { visibility: hidden !important; }
-      .print-window, .print-window * { visibility: visible !important; }
-      .print-window {
-        position: fixed;
-        left: 0;
-        top: 0;
-        width: 72mm;
-        padding: 2mm 3mm;
-        font-family: Arial, sans-serif;
-        color: #000;
-        font-size: 11px;
-      }
-      .ticket { width: 100%; }
-      .center { text-align: center; }
-      .title { font-size: 14px; font-weight: 700; }
-      .subtitle { font-size: 12px; font-weight: 700; margin-top: 1px; }
-      .phone { font-size: 10px; margin-top: 1px; }
-      .small { font-size: 10px; }
-      .hr { border-top: 1px dashed #000; margin: 4px 0; }
-      .row {
-        display: flex;
-        justify-content: space-between;
-        gap: 4px;
-        margin: 1px 0;
-        align-items: flex-start;
-      }
-      .label {
-        font-weight: 700;
-        min-width: 24mm;
-        flex: 0 0 24mm;
-      }
-      .value {
-        flex: 1;
-        text-align: right;
-        word-break: break-word;
-        overflow-wrap: anywhere;
-      }
-    }
   </style>
 </head>
 <body>
-  <div class="header no-print">
+  <div class="header">
     <h1>📺 CANAL+ - Saisie</h1>
     <div class="nav-links">
       <a href="acceuil.html" class="nav-btn">🏠 Acceuil</a>
@@ -100,7 +65,7 @@
     </div>
   </div>
 
-  <div class="container no-print">
+  <div class="container">
     <div class="card">
       <h2 id="formTitle">➕ Nouvelle opération</h2>
       
@@ -218,7 +183,7 @@
           </div>
         </div>
 
-        <div class="commission-display">
+        <div class="commission-display" id="commissionBox">
           <div><strong>ℹ️ Commissions :</strong></div>
           <div class="commission-toi">👉 Ta commission : <span id="commToi">0</span> Ar</div>
           <div class="commission-source">📢 Source : <span id="commSource">0</span> Ar</div>
@@ -232,70 +197,45 @@
 
         <div class="btn-group">
           <button type="button" class="btn-secondary" onclick="resetForm()">🔄 Effacer</button>
-          <button type="button" class="btn-secondary" onclick="printReceipt()">🖨️ Imprimer reçu</button>
           <button type="submit" class="btn-primary">💾 Enregistrer</button>
         </div>
       </form>
     </div>
   </div>
 
-  <div id="printArea" class="print-window" style="display:none;"></div>
-
   <script>
-    const APPWRITE_PROJECT_ID = 'project-fra-6a1faefd00021b76d125';
-    const APPWRITE_API_KEY = 'standard_0d81143ca0d7c6a6175f041f78f3e0a73a26d46c7c871fe429bbd44813f0e491e06efb4aba5be47aa1ca5647e1f526f5e7add955d8a3031a2be363f3af72da9126eeb3ade09059cd845389aabf9f04521e9607f5d637c64d386b68a9bd760db5a9e41d3750a9910a960ecda7c60130c095b4cbea34dd983cada83e4e0300755a';
-    const APPWRITE_ENDPOINT = 'https://cloud.appwrite.io/v1';
-    const APPWRITE_DATABASE = 'database-6a2441150013dd96ba51';
-    const APPWRITE_TABLE = 'operations';
-
-    const client = new Appwrite.Client()
-      .setEndpoint(APPWRITE_ENDPOINT)
-      .setProject(APPWRITE_PROJECT_ID)
-      .setKey(APPWRITE_API_KEY);
-    
-    const db = new Appwrite.Db(client);
-
+    const STORAGE_KEY = 'canalplus_operations';
     let editId = null;
 
     function generateId() {
       return Date.now().toString(36) + Math.random().toString(36).substr(2);
     }
 
-    async function loadData() {
+    function loadData() {
       try {
-        const response = await db.listDocuments(APPWRITE_TABLE, 'default');
-        return response.documents || [];
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
       } catch (e) {
-        console.error('Erreur Appwrite:', e);
         return [];
       }
     }
 
-    async function saveData(data) {
-      try {
-        for (const operation of data) {
-          if (operation.id) {
-            await db.updateDocument(APPWRITE_TABLE, operation.id, operation);
-          } else {
-            await db.createDocument(APPWRITE_TABLE, 'auto', operation);
-          }
-        }
-        return true;
-      } catch (e) {
-        console.error('Erreur save:', e);
-        return false;
-      }
+    function saveData(data) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     }
 
     function setDefaultDateTime() {
       const now = new Date();
       const dateInput = document.getElementById('date');
       const timeInput = document.getElementById('heure');
+      
       const year = now.getFullYear();
       const month = String(now.getMonth() + 1).padStart(2, '0');
       const day = String(now.getDate()).padStart(2, '0');
       const hours = String(now.getHours()).padStart(2, '0');
       const minutes = String(now.getMinutes()).padStart(2, '0');
+      
       dateInput.value = `${year}-${month}-${day}`;
       timeInput.value = `${hours}:${minutes}`;
     }
@@ -394,6 +334,7 @@
         photoSignal: document.getElementById('photoSignal').files[0],
         photoParabole: document.getElementById('photoParabole').files[0]
       };
+
       const entries = await Promise.all(Object.entries(files).map(async ([key, file]) => [key, await readFileAsDataURL(file)]));
       return Object.fromEntries(entries);
     }
@@ -428,113 +369,6 @@
 
       renderVisibility();
       renderCalc();
-    }
-
-    function printReceipt() {
-      const type = document.getElementById('type').value || '';
-      const statut = document.getElementById('statut').value || '';
-      const date = document.getElementById('date').value || '';
-      const heure = document.getElementById('heure').value || '';
-      const nom = document.getElementById('nom').value || '';
-      const prenom = document.getElementById('prenom').value || '';
-      const contact = document.getElementById('contact').value || '';
-      const source = document.getElementById('source').value || '';
-      const technicien = document.getElementById('technicien').value || '';
-      const adresse = document.getElementById('adresse').value || '';
-      const spOk = document.getElementById('spOk').checked ? 'Oui' : 'Non';
-      const numCarte = document.getElementById('numCarte').value || '';
-      const numDecodeur = document.getElementById('numDecodeur').value || '';
-      const bouquet = document.getElementById('bouquet').value || '';
-      const montant = document.getElementById('montant').value || '';
-      const commSource = document.getElementById('commSource').textContent || '0';
-      const commTech = document.getElementById('commTech').textContent || '0';
-      const isVente = type === 'vente';
-
-      const content = `
-        <div class="ticket">
-          <div class="center title">NOMENA SERVICE AMBATOLAMPY</div>
-          <div class="center subtitle">CANAL+</div>
-          <div class="center phone">0349360335</div>
-          <div class="center small">Reçu d'opération</div>
-          <div class="hr"></div>
-
-          <div class="row"><div class="label">Type</div><div class="value">${type}</div></div>
-          <div class="row"><div class="label">Statut</div><div class="value">${statut}</div></div>
-          <div class="row"><div class="label">Date</div><div class="value">${date}</div></div>
-          <div class="row"><div class="label">Heure</div><div class="value">${heure}</div></div>
-          <div class="row"><div class="label">Nom</div><div class="value">${nom} ${prenom}</div></div>
-          <div class="row"><div class="label">Contact</div><div class="value">${contact}</div></div>
-          <div class="row"><div class="label">Adresse</div><div class="value">${adresse}</div></div>
-          <div class="row"><div class="label">SP ok</div><div class="value">${spOk}</div></div>
-          <div class="row"><div class="label">Carte</div><div class="value">${numCarte}</div></div>
-          <div class="row"><div class="label">Décodeur</div><div class="value">${numDecodeur}</div></div>
-          <div class="row"><div class="label">Bouquet</div><div class="value">${bouquet}</div></div>
-          ${isVente ? '' : `<div class="row"><div class="label">Montant</div><div class="value">${montant} Ar</div></div>`}
-          ${isVente ? '' : `<div class="row"><div class="label">Source</div><div class="value">${commSource} Ar</div></div>`}
-          ${isVente ? '' : `<div class="row"><div class="label">Tech</div><div class="value">${commTech} Ar</div></div>`}
-
-          <div class="hr"></div>
-          <div class="center small">Merci pour votre confiance</div>
-        </div>
-      `;
-
-      const w = window.open('', '_blank', 'width=420,height=700');
-      w.document.write(`
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <title>Reçu</title>
-          <style>
-            @page { size: 80mm auto; margin: 0; }
-            html, body { margin: 0; padding: 0; width: 100%; }
-            body { font-family: Arial, sans-serif; color: #000; }
-            .print-window {
-              width: 72mm;
-              padding: 2mm 3mm;
-              font-size: 11px;
-              color: #000;
-            }
-            .ticket { width: 100%; }
-            .center { text-align: center; }
-            .title { font-size: 14px; font-weight: 700; }
-            .subtitle { font-size: 12px; font-weight: 700; margin-top: 1px; }
-            .phone { font-size: 10px; margin-top: 1px; }
-            .small { font-size: 10px; }
-            .hr { border-top: 1px dashed #000; margin: 4px 0; }
-            .row {
-              display: flex;
-              justify-content: space-between;
-              gap: 4px;
-              margin: 1px 0;
-              align-items: flex-start;
-            }
-            .label {
-              font-weight: 700;
-              min-width: 24mm;
-              flex: 0 0 24mm;
-            }
-            .value {
-              flex: 1;
-              text-align: right;
-              word-break: break-word;
-              overflow-wrap: anywhere;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="print-window">
-            ${content}
-          </div>
-          <script>
-            window.onload = function() {
-              window.print();
-              window.close();
-            };
-          <\/script>
-        </body>
-        </html>
-      `);
-      w.document.close();
     }
 
     document.getElementById('opForm').addEventListener('submit', async (e) => {
@@ -593,8 +427,8 @@
         data.push(operation);
       }
 
-      await saveData(data);
-      alert(editId ? '✅ Modifié !' : '✅ Enregistré dans Appwrite !');
+      saveData(data);
+      alert(editId ? '✅ Modifié !' : '✅ Enregistré !');
       
       if (!editId) {
         resetForm();
