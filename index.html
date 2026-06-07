@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <!-- Script Appwrite AJOUTÉ -->
+  <!-- Script Appwrite -->
   <script src="https://cdn.jsdelivr.net/npm/appwrite@13.0.0/lib/appwrite.min.js"></script>
   
   <title>CANAL+ - Saisie</title>
@@ -204,6 +204,20 @@
   </div>
 
   <script>
+    // === CONFIGURATION APPWRITE ===
+    const APPWRITE_PROJECT_ID = '6a1faefd00021b76d125';
+    const APPWRITE_DATABASE_ID = 'database-6a2441150013dd96ba51';
+    const APPWRITE_TABLE_ID = 'operations';
+    
+    // Initialiser Appwrite
+    const client = new Appwrite.Client();
+    client
+      .setEndpoint('https://fra.cloud.appwrite.io/v1')
+      .setProject(APPWRITE_PROJECT_ID);
+    
+    const databases = new Appwrite.Databases(client);
+    
+    // === STOCKAGE LOCAL (pour affichage) ===
     const STORAGE_KEY = 'canalplus_operations';
     let editId = null;
 
@@ -371,6 +385,46 @@
       renderCalc();
     }
 
+    async function saveToAppwrite(operation) {
+      try {
+        const documentData = {
+          id: operation.id,
+          type: operation.type,
+          statut: operation.statut,
+          date: operation.date,
+          heure: operation.heure,
+          nom: operation.nom,
+          prenom: operation.prenom,
+          contact: operation.contact,
+          source: operation.source,
+          technicien: operation.technicien,
+          adresse: operation.adresse,
+          spOk: operation.spOk,
+          numCarte: operation.numCarte,
+          numDecodeur: operation.numDecodeur,
+          bouquet: operation.bouquet,
+          montant: operation.montant,
+          commissionToi: operation.commissionToi,
+          commissionSource: operation.commissionSource,
+          commissionTech: operation.commissionTech
+        };
+        
+        await databases.createDocument(
+          APPWRITE_DATABASE_ID,
+          APPWRITE_TABLE_ID,
+          operation.id,
+          documentData
+        );
+        
+        console.log('✅ Sauvegardé sur Appwrite !');
+        return true;
+      } catch (error) {
+        console.error('❌ Erreur Appwrite:', error);
+        alert('❌ Erreur sauvegarde: ' + error.message);
+        return false;
+      }
+    }
+
     document.getElementById('opForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
@@ -428,14 +482,20 @@
       }
 
       saveData(data);
-      alert(editId ? '✅ Modifié !' : '✅ Enregistré !');
       
-      if (!editId) {
-        resetForm();
-      } else {
-        window.history.replaceState({}, '', window.location.pathname);
-        editId = null;
-        document.getElementById('formTitle').textContent = '➕ Nouvelle opération';
+      // Sauvegarder sur Appwrite
+      const success = await saveToAppwrite(operation);
+      
+      if (success) {
+        alert(editId ? '✅ Modifié !' : '✅ Enregistré sur Appwrite !');
+        
+        if (!editId) {
+          resetForm();
+        } else {
+          window.history.replaceState({}, '', window.location.pathname);
+          editId = null;
+          document.getElementById('formTitle').textContent = '➕ Nouvelle opération';
+        }
       }
     });
 
