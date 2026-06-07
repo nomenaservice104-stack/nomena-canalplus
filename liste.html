@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Liste des opérations</title>
 <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
-<!-- Appwrite SDK -->
 <script src="https://cdn.appwrite.io/appwrite.js"></script>
 <style>
 body{font-family:Arial,sans-serif;margin:0;background:#eef2f7;color:#e9eef5}
@@ -190,13 +189,11 @@ tr:hover{background:#1e2a3a}
 </div>
 
 <script>
-// Configuration Appwrite
 const APPWRITE_PROJECT_ID = 'project-fra-6a1faefd00021b76d125';
 const APPWRITE_API_KEY = 'standard_57ecaf2d3b978d570e8374b547bf09602944fe0d96d920e4f942e38ff0134ec565c488a38f90eae49ad7d9a80295fa1f5febbf73f686b808131f5ae0f19520ebb69da7aaf43b256063d89d2dbd77ca989a4398d0c2f37f336be308ecc0353df8bd2016a33eebce065d966354626ea90dedd74af5f043f9cd0a4c6b0fce652e2f';
 const APPWRITE_ENDPOINT = 'https://cloud.appwrite.io/v1';
 const APPWRITE_TABLE = 'operations';
 
-// Initialiser Appwrite
 const client = new Appwrite.Client()
   .setEndpoint(APPWRITE_ENDPOINT)
   .setProject(APPWRITE_PROJECT_ID)
@@ -209,47 +206,34 @@ let contextMenuItemIndex=-1;
 
 function escapeHtml(str){return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;')}
 
-// ✅ loadData() CORRIGÉ - Charge Appwrite + localStorage
 async function loadData(){
   try {
-    // 1. Charger de Appwrite (cloud)
     const response = await db.listDocuments(APPWRITE_TABLE, 'default');
     const appwriteData = response.documents || [];
-    
-    // 2. Charger de localStorage (backup JSON)
     const localBackup = localStorage.getItem('canalplus_operations_backup');
     const localData = localBackup ? JSON.parse(localBackup) : [];
-    
-    // 3. Combiner les 2 (Appwrite + localStorage)
     const allIds = new Set();
     const merged = [];
-    
-    // Ajouter Appwrite data
     for (const item of appwriteData) {
       if (!allIds.has(item.id)) {
         merged.push(item);
         allIds.add(item.id);
       }
     }
-    
-    // Ajouter localStorage data
     for (const item of localData) {
       if (!allIds.has(item.id)) {
         merged.push(item);
         allIds.add(item.id);
       }
     }
-    
     return merged;
   } catch (e) {
     console.error('Erreur Appwrite:', e);
-    // Si Appwrite échoue, retourner localStorage
     const localBackup = localStorage.getItem('canalplus_operations_backup');
     return localBackup ? JSON.parse(localBackup) : [];
   }
 }
 
-// ✅ saveData() - Sauvegarde en localStorage (backup)
 function saveData(data){
   localStorage.setItem('canalplus_operations_backup', JSON.stringify(data));
 }
@@ -421,10 +405,7 @@ async function saveEdit(){
   const photoSignal=type==='vente'&&p3?await readFileAsDataURL(p3):(old.photoSignal||'');
   const photoParabole=type==='vente'&&p4?await readFileAsDataURL(p4):(old.photoParabole||'');
   data[editIndex]={...data[editIndex],nom:document.getElementById('editNom').value.trim(),prenom:document.getElementById('editPrenom').value.trim(),contact:document.getElementById('editContact').value.trim(),adresse:document.getElementById('editAdresse').value.trim(),spOk:document.getElementById('editSpOk').checked,source,technicien:type==='vente'?technicien:'',numCarte:document.getElementById('editNumCarte').value.trim(),numDecodeur:document.getElementById('editNumDecodeur').value.trim(),bouquet:document.getElementById('editBouquet').value.trim(),montant,commissionToi,commissionSource,commissionTech,type,date:document.getElementById('editDate').value||data[editIndex].date,heure:document.getElementById('editHeure').value||data[editIndex].heure,statut:document.getElementById('editStatut').value,photoDecodeur,photoCarte,photoSignal,photoParabole};
-  
-  // Enregistrer dans Appwrite
   await db.updateDocument(APPWRITE_TABLE, data[editIndex].id, data[editIndex]);
-  
   closeEdit();renderTable();
 }
 
@@ -433,15 +414,12 @@ function deleteItem(index){
   if(index<0||index>=data.length)return;
   if(!confirm('Supprimer?'))return;
   const item=data[index];
-  // Supprimer dans Appwrite
   db.deleteDocument(APPWRITE_TABLE, item.id);
   renderTable();
 }
 
-// ✅ exportJSON() - Exporte Appwrite + localStorage
 function exportJSON(){const data=getLoadData();const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='canalplus_operations.json';a.click();URL.revokeObjectURL(url)}
 
-// ✅ importJSON() CORRIGÉ - Importe dans Appwrite + localStorage
 function importJSON(event){
   const file=event.target.files[0];if(!file)return;
   const reader=new FileReader();
@@ -449,22 +427,20 @@ function importJSON(event){
     try{
       const parsed=JSON.parse(e.target.result);
       if(!Array.isArray(parsed)){alert('JSON doit être un tableau');return}
-      
-      // 1. Sauvegarde en localStorage
       saveData(parsed);
-      
-      // 2. Importer dans Appwrite
-      parsed.forEach(async (operation) => {
+      for (const operation of parsed) {
         if(operation.id){
-          await db.updateDocument(APPWRITE_TABLE, operation.id, operation);
+          db.updateDocument(APPWRITE_TABLE, operation.id, operation);
         } else {
-          await db.createDocument(APPWRITE_TABLE, 'auto', operation);
+          db.createDocument(APPWRITE_TABLE, 'auto', operation);
         }
-      });
-      
+      }
       renderTable();
       alert('Import OK dans Appwrite + localStorage !');
-    }catch(err){alert('JSON invalide')}
+    }catch(err){
+      console.error('Erreur import:', err);
+      alert('JSON invalide: ' + err.message);
+    }
   };
   reader.readAsText(file);event.target.value='';
 }
@@ -490,7 +466,6 @@ function printFromContext(){if(contextMenuItemIndex>=0)printReceipt(contextMenuI
 function historyFromContext(){if(contextMenuItemIndex>=0){const data=getLoadData()[contextMenuItemIndex];openHistory(data.nom||'');}contextMenu.classList.remove('show')}
 function deleteFromContext(){if(contextMenuItemIndex>=0)deleteItem(contextMenuItemIndex);contextMenu.classList.remove('show')}
 
-// Chargement initial
 document.addEventListener('DOMContentLoaded', async () => {
   await renderTable();
 });
