@@ -7,7 +7,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <!-- Appwrite SDK -->
   <script src="https://cdn.appwrite.io/appwrite.js"></script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
@@ -243,14 +242,12 @@
   <div id="printArea" class="print-window" style="display:none;"></div>
 
   <script>
-    // Configuration Appwrite
     const APPWRITE_PROJECT_ID = 'project-fra-6a1faefd00021b76d125';
-    const APPWRITE_API_KEY = 'standard_57ecaf2d3b978d570e8374b547bf09602944fe0d96d920e4f942e38ff0134ec565c488a38f90eae49ad7d9a80295fa1f5febbf73f686b808131f5ae0f19520ebb69da7aaf43b256063d89d2dbd77ca989a4398d0c2f37f336be308ecc0353df8bd2016a33eebce065d966354626ea90dedd74af5f043f9cd0a4c6b0fce652e2f';
+    const APPWRITE_API_KEY = 'standard_0d81143ca0d7c6a6175f041f78f3e0a73a26d46c7c871fe429bbd44813f0e491e06efb4aba5be47aa1ca5647e1f526f5e7add955d8a3031a2be363f3af72da9126eeb3ade09059cd845389aabf9f04521e9607f5d637c64d386b68a9bd760db5a9e41d3750a9910a960ecda7c60130c095b4cbea34dd983cada83e4e0300755a';
     const APPWRITE_ENDPOINT = 'https://cloud.appwrite.io/v1';
     const APPWRITE_DATABASE = 'database-6a2441150013dd96ba51';
     const APPWRITE_TABLE = 'operations';
 
-    // Initialiser Appwrite
     const client = new Appwrite.Client()
       .setEndpoint(APPWRITE_ENDPOINT)
       .setProject(APPWRITE_PROJECT_ID)
@@ -264,7 +261,6 @@
       return Date.now().toString(36) + Math.random().toString(36).substr(2);
     }
 
-    // REMPLACER loadData() - Charger données de Appwrite
     async function loadData() {
       try {
         const response = await db.listDocuments(APPWRITE_TABLE, 'default');
@@ -275,15 +271,12 @@
       }
     }
 
-    // REMPLACER saveData() - Enregistrer dans Appwrite
     async function saveData(data) {
       try {
         for (const operation of data) {
           if (operation.id) {
-            // Update
             await db.updateDocument(APPWRITE_TABLE, operation.id, operation);
           } else {
-            // Create
             await db.createDocument(APPWRITE_TABLE, 'auto', operation);
           }
         }
