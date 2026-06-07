@@ -209,19 +209,48 @@ let contextMenuItemIndex=-1;
 
 function escapeHtml(str){return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;')}
 
-// REMPLACER loadData() - Charger de Appwrite
+// ✅ loadData() CORRIGÉ - Charge Appwrite + localStorage
 async function loadData(){
   try {
+    // 1. Charger de Appwrite (cloud)
     const response = await db.listDocuments(APPWRITE_TABLE, 'default');
-    return response.documents || [];
+    const appwriteData = response.documents || [];
+    
+    // 2. Charger de localStorage (backup JSON)
+    const localBackup = localStorage.getItem('canalplus_operations_backup');
+    const localData = localBackup ? JSON.parse(localBackup) : [];
+    
+    // 3. Combiner les 2 (Appwrite + localStorage)
+    const allIds = new Set();
+    const merged = [];
+    
+    // Ajouter Appwrite data
+    for (const item of appwriteData) {
+      if (!allIds.has(item.id)) {
+        merged.push(item);
+        allIds.add(item.id);
+      }
+    }
+    
+    // Ajouter localStorage data
+    for (const item of localData) {
+      if (!allIds.has(item.id)) {
+        merged.push(item);
+        allIds.add(item.id);
+      }
+    }
+    
+    return merged;
   } catch (e) {
     console.error('Erreur Appwrite:', e);
-    return [];
+    // Si Appwrite échoue, retourner localStorage
+    const localBackup = localStorage.getItem('canalplus_operations_backup');
+    return localBackup ? JSON.parse(localBackup) : [];
   }
 }
 
+// ✅ saveData() - Sauvegarde en localStorage (backup)
 function saveData(data){
-  // Sauvegarde locale (pour compatibilité)
   localStorage.setItem('canalplus_operations_backup', JSON.stringify(data));
 }
 
@@ -409,12 +438,34 @@ function deleteItem(index){
   renderTable();
 }
 
+// ✅ exportJSON() - Exporte Appwrite + localStorage
 function exportJSON(){const data=getLoadData();const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='canalplus_operations.json';a.click();URL.revokeObjectURL(url)}
 
+// ✅ importJSON() CORRIGÉ - Importe dans Appwrite + localStorage
 function importJSON(event){
   const file=event.target.files[0];if(!file)return;
   const reader=new FileReader();
-  reader.onload=e=>{try{const parsed=JSON.parse(e.target.result);if(!Array.isArray(parsed)){alert('JSON doit être un tableau');return}saveData(parsed);renderTable();alert('Import OK')}catch(err){alert('JSON invalide')}};
+  reader.onload=e=>{
+    try{
+      const parsed=JSON.parse(e.target.result);
+      if(!Array.isArray(parsed)){alert('JSON doit être un tableau');return}
+      
+      // 1. Sauvegarde en localStorage
+      saveData(parsed);
+      
+      // 2. Importer dans Appwrite
+      parsed.forEach(async (operation) => {
+        if(operation.id){
+          await db.updateDocument(APPWRITE_TABLE, operation.id, operation);
+        } else {
+          await db.createDocument(APPWRITE_TABLE, 'auto', operation);
+        }
+      });
+      
+      renderTable();
+      alert('Import OK dans Appwrite + localStorage !');
+    }catch(err){alert('JSON invalide')}
+  };
   reader.readAsText(file);event.target.value='';
 }
 
