@@ -43,11 +43,24 @@
     .commission-toi{color:#22c55e;font-weight:700}
     .commission-source{color:#38bdf8;font-weight:600}
     .commission-tech{color:#f59e0b;font-weight:600}
-    .upload-area{border:2px dashed #415063;border-radius:5px;padding:12px;text-align:center;cursor:pointer;background:#1a2431}
-    .upload-area:hover{border-color:#2f6fed;background:#1e2a3a}
-    .upload-area input{display:none}
-    .photo-preview{display:grid;grid-template-columns:repeat(auto-fit,minmax(60px,1fr));gap:5px;margin-top:7px}
-    .photo-preview img{width:100%;height:60px;object-fit:cover;border-radius:4px}
+    
+    /* IMPRESSION 8cm */
+    #printArea {
+      display: none;
+      width: 8cm;
+      font-family: monospace;
+      font-size: 11px;
+      color: black;
+      background: white;
+      padding: 5mm;
+      line-height: 1.3;
+    }
+    
+    @media print {
+      body { background: white; margin: 0; padding: 0; }
+      .header, .container, .nav-links { display: none !important; }
+      #printArea { display: block !important; position: absolute; top: 0; left: 0; width: 8cm !important; }
+    }
   </style>
 </head>
 <body>
@@ -193,11 +206,14 @@
 
         <div class="btn-group">
           <button type="button" class="btn-secondary" onclick="resetForm()">🔄 Effacer</button>
+          <button type="button" class="btn-secondary" onclick="printBeforeSave()">🖨️ Imprimer</button>
           <button type="submit" class="btn-primary">💾 Enregistrer</button>
         </div>
       </form>
     </div>
   </div>
+
+  <div id="printArea"></div>
 
   <script>
     const STORAGE_KEY = 'canalplus_operations';
@@ -223,45 +239,28 @@
 
     function setDefaultDateTime() {
       const now = new Date();
-      const dateInput = document.getElementById('date');
-      const timeInput = document.getElementById('heure');
-      
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      
-      dateInput.value = `${year}-${month}-${day}`;
-      timeInput.value = `${hours}:${minutes}`;
+      document.getElementById('date').value = now.toISOString().split('T')[0];
+      document.getElementById('heure').value = now.toTimeString().split(' ')[0].substring(0,5);
     }
 
     function renderVisibility() {
       const type = document.getElementById('type').value;
-      const carteGroup = document.getElementById('carteGroup');
-      const decodeurGroup = document.getElementById('decodeurGroup');
-      const bouquetGroup = document.getElementById('bouquetGroup');
-      const montantGroup = document.getElementById('montantGroup');
-      const photosGroup = document.getElementById('photosGroup');
-      const bouquet = document.getElementById('bouquet');
-      const montant = document.getElementById('montant');
-
+      document.getElementById('carteGroup').classList.remove('hidden');
+      
       if (type === 'vente') {
-        carteGroup.classList.remove('hidden');
-        decodeurGroup.classList.remove('hidden');
-        bouquetGroup.classList.add('hidden');
-        montantGroup.classList.add('hidden');
-        photosGroup.classList.remove('hidden');
-        bouquet.required = false;
-        montant.required = false;
+        document.getElementById('decodeurGroup').classList.remove('hidden');
+        document.getElementById('bouquetGroup').classList.add('hidden');
+        document.getElementById('montantGroup').classList.add('hidden');
+        document.getElementById('photosGroup').classList.remove('hidden');
+        document.getElementById('bouquet').required = false;
+        document.getElementById('montant').required = false;
       } else {
-        carteGroup.classList.remove('hidden');
-        decodeurGroup.classList.add('hidden');
-        bouquetGroup.classList.remove('hidden');
-        montantGroup.classList.remove('hidden');
-        photosGroup.classList.add('hidden');
-        bouquet.required = true;
-        montant.required = true;
+        document.getElementById('decodeurGroup').classList.add('hidden');
+        document.getElementById('bouquetGroup').classList.remove('hidden');
+        document.getElementById('montantGroup').classList.remove('hidden');
+        document.getElementById('photosGroup').classList.add('hidden');
+        document.getElementById('bouquet').required = true;
+        document.getElementById('montant').required = true;
       }
     }
 
@@ -276,12 +275,9 @@
     function calcReaboCommission(source, montant) {
       const base = Number(montant) || 0;
       if (source) {
-        const commissionSource = base * 0.03;
-        const commissionToi = base * 0.03;
-        return { commissionToi, commissionSource, commissionTech: 0, montant: base };
+        return { commissionToi: base * 0.03, commissionSource: base * 0.03, commissionTech: 0, montant: base };
       } else {
-        const commissionToi = base * 0.06;
-        return { commissionToi, commissionSource: 0, commissionTech: 0, montant: base };
+        return { commissionToi: base * 0.06, commissionSource: 0, commissionTech: 0, montant: base };
       }
     }
 
@@ -313,92 +309,75 @@
       renderCalc();
     }
 
-    function readFileAsDataURL(file) {
-      return new Promise((resolve, reject) => {
-        if (!file) return resolve('');
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result || '');
-        reader.onerror = () => reject(new Error('Erreur lecture fichier'));
-        reader.readAsDataURL(file);
-      });
-    }
-
-    async function getPhotoValues() {
-      const files = {
-        photoDecodeur: document.getElementById('photoDecodeur').files[0],
-        photoCarte: document.getElementById('photoCarte').files[0],
-        photoSignal: document.getElementById('photoSignal').files[0],
-        photoParabole: document.getElementById('photoParabole').files[0]
-      };
-
-      const entries = await Promise.all(Object.entries(files).map(async ([key, file]) => [key, await readFileAsDataURL(file)]));
-      return Object.fromEntries(entries);
-    }
-
-    function loadEditIfAny() {
-      const params = new URLSearchParams(window.location.search);
-      const editIdParam = params.get('edit');
-      if (!editIdParam) return;
-
-      const data = loadData();
-      const item = data.find(x => x.id === editIdParam);
-      if (!item) return;
-
-      editId = item.id;
-      document.getElementById('formTitle').textContent = '✏️ Modifier opération';
-
-      document.getElementById('type').value = item.type || 'vente';
-      document.getElementById('statut').value = item.statut || 'OK';
-      document.getElementById('date').value = item.date || '';
-      document.getElementById('heure').value = item.heure || '';
-      document.getElementById('nom').value = item.nom || '';
-      document.getElementById('prenom').value = item.prenom || '';
-      document.getElementById('contact').value = item.contact || '';
-      document.getElementById('source').value = item.source || '';
-      document.getElementById('technicien').value = item.technicien || '';
-      document.getElementById('adresse').value = item.adresse || '';
-      document.getElementById('spOk').checked = !!item.spOk;
-      document.getElementById('numCarte').value = item.numCarte || '';
-      document.getElementById('numDecodeur').value = item.numDecodeur || '';
-      document.getElementById('bouquet').value = item.bouquet || '';
-      document.getElementById('montant').value = item.montant || '';
-
-      renderVisibility();
-      renderCalc();
-    }
-
-    document.getElementById('opForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
+    function printBeforeSave() {
+      if (!document.getElementById('opForm').checkValidity()) {
+        document.getElementById('opForm').reportValidity();
+        return;
+      }
 
       const type = document.getElementById('type').value;
       const source = document.getElementById('source').value.trim();
       const technicien = document.getElementById('technicien').value.trim();
       const montantSaisi = document.getElementById('montant').value;
 
-      let commissions;
-      if (type === 'vente') {
-        commissions = calcSaleCommission(source, technicien);
-      } else {
-        commissions = calcReaboCommission(source, montantSaisi);
-      }
+      let commissions = type === 'vente' 
+        ? calcSaleCommission(source, technicien)
+        : calcReaboCommission(source, montantSaisi);
 
-      const photos = type === 'vente' ? await getPhotoValues() : {
-        photoDecodeur: '',
-        photoCarte: '',
-        photoSignal: '',
-        photoParabole: ''
-      };
+      const printText = `
+NOMENA SERVICE AMBATOLAMPY
+        CANAL+
+
+034 93 603 35
+WhatsApp
+
+--------------------------------
+
+Type : ${type === 'vente' ? 'VENTE' : 'REABO'}
+Statut : OK
+Date : ${document.getElementById('date').value}
+Heure : ${document.getElementById('heure').value}
+
+Nom : ${document.getElementById('nom').value}
+Prénom : ${document.getElementById('prenom').value}
+Contact : ${document.getElementById('contact').value}
+Adresse : ${document.getElementById('adresse').value}
+Carte : ${document.getElementById('numCarte').value}
+Decodeur : ${document.getElementById('numDecodeur').value}
+Bouquet : ${document.getElementById('bouquet').value}
+${type === 'reabo' ? 'Montant : ' + commissions.montant + ' Ar' : ''}
+
+--------------------------------
+
+Votre satisfaction
+notre priorité
+`.trim();
+
+      document.getElementById('printArea').textContent = printText;
+      window.print();
+    }
+
+    document.getElementById('opForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const type = document.getElementById('type').value;
+      const source = document.getElementById('source').value.trim();
+      const technicien = document.getElementById('technicien').value.trim();
+      const montantSaisi = document.getElementById('montant').value;
+
+      let commissions = type === 'vente' 
+        ? calcSaleCommission(source, technicien)
+        : calcReaboCommission(source, montantSaisi);
 
       const operation = {
         id: editId || generateId(),
-        type: type,
+        type,
         statut: document.getElementById('statut').value,
         date: document.getElementById('date').value,
         heure: document.getElementById('heure').value,
         nom: document.getElementById('nom').value.trim(),
         prenom: document.getElementById('prenom').value.trim(),
         contact: document.getElementById('contact').value.trim(),
-        source: source,
+        source,
         technicien: type === 'vente' ? technicien : '',
         adresse: document.getElementById('adresse').value.trim(),
         spOk: document.getElementById('spOk').checked,
@@ -408,11 +387,7 @@
         montant: commissions.montant,
         commissionToi: commissions.commissionToi,
         commissionSource: commissions.commissionSource,
-        commissionTech: commissions.commissionTech,
-        photoDecodeur: photos.photoDecodeur,
-        photoCarte: photos.photoCarte,
-        photoSignal: photos.photoSignal,
-        photoParabole: photos.photoParabole
+        commissionTech: commissions.commissionTech
       };
 
       const data = loadData();
@@ -424,24 +399,22 @@
       }
 
       saveData(data);
-      alert(editId ? '✅ Modifié !' : '✅ Enregistré !');
+      alert(editId ? 'Modifie !' : 'Enregistre !');
       
-      if (!editId) {
-        resetForm();
-      } else {
+      if (!editId) resetForm();
+      else {
         window.history.replaceState({}, '', window.location.pathname);
         editId = null;
         document.getElementById('formTitle').textContent = '➕ Nouvelle opération';
       }
     });
 
-    document.getElementById('source').addEventListener('input', renderCalc);
-    document.getElementById('technicien').addEventListener('input', renderCalc);
-    document.getElementById('montant').addEventListener('input', renderCalc);
+    ['source','technicien','montant'].forEach(id => 
+      document.getElementById(id).addEventListener('input', renderCalc)
+    );
 
     document.addEventListener('DOMContentLoaded', () => {
       setDefaultDateTime();
-      loadEditIfAny();
       renderVisibility();
       renderCalc();
     });
